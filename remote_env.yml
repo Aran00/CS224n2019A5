@@ -1,0 +1,8 @@
+name: nmt_remote_env
+dependencies:
+  - python=3.6
+  - numpy
+  - scipy
+  - tqdm
+  - docopt
+  - nltk
