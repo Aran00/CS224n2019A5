@@ -63,9 +63,10 @@ import pickle
 import time
 import datetime
 import json
+from argparse import ArgumentParser
 
 
-from docopt import docopt
+# from docopt import docopt
 from nltk.translate.bleu_score import corpus_bleu, sentence_bleu, SmoothingFunction
 from nmt_model import Hypothesis, NMT
 import numpy as np
@@ -360,10 +361,68 @@ def beam_search(model: NMT, test_data_src: List[List[str]], beam_size: int, max_
     return hypotheses
 
 
+def get_args():
+    parser = ArgumentParser(description='Use argparse to simulate docopt, though not very good')
+    parser.add_argument('action', choices=['train', 'decode'])
+
+    all_args = sys.argv[1:]
+    if len(all_args) > 0 and all_args[0] == 'train':
+        add_optional_arguments(parser)
+    elif len(all_args) > 0 and all_args[0] == 'decode':
+        add_optional_arguments(parser)
+        required_args = [arg for arg in all_args if arg[:2] != '--']
+        parser.add_argument('MODEL_PATH', type=str)
+        parser.add_argument('TEST_SOURCE_FILE', type=str)
+        if len(required_args) == 5:
+            parser.add_argument('TEST_TARGET_FILE', type=str)
+        parser.add_argument('OUTPUT_FILE', type=str)
+    else:
+        print('Not supported command line arguments.')
+    args = vars(parser.parse_args())
+    true_args = {'train': True, 'decode': False} if args['action'] == 'train' else {'train': False, 'decode': True}
+    for key in args:
+        if key in ['action', 'MODEL_PATH', 'TEST_SOURCE_FILE', 'TEST_TARGET_FILE', 'OUTPUT_FILE']:
+            true_args[key] = args[key]
+        else:
+            true_args['--%s' % key.replace('_', '-')] = args[key]
+    return true_args
+
+
+def add_optional_arguments(parser):
+    parser.add_argument('--cuda', action='store_true')
+    parser.add_argument('--train-src', type=str)
+    parser.add_argument('--train-tgt', type=str)
+    parser.add_argument('--dev-src', type=str)
+    parser.add_argument('--dev-tgt', type=str)
+    parser.add_argument('--vocab', type=str)
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--embed-size', type=int, default=256)
+    parser.add_argument('--hidden-size', type=int, default=256)
+    parser.add_argument('--clip-grad', type=float, default=5.0)
+    parser.add_argument('--log-every', type=int, default=10)
+    parser.add_argument('--max-epoch', type=int, default=30)
+    parser.add_argument('--input-feed', action='store_true')
+    parser.add_argument('--patience', type=int, default=5)
+    parser.add_argument('--max-num-trial', type=int, default=5)
+    parser.add_argument('--lr-decay', type=float, default=0.5)
+    parser.add_argument('--beam-size', type=int, default=5)
+    parser.add_argument('--sample-size', type=int, default=5)
+    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--uniform-init', type=float, default=0.1)
+    parser.add_argument('--save-to', type=str, default='model.bin')
+    parser.add_argument('--valid-niter', type=int, default=2000)
+    parser.add_argument('--dropout', type=float, default=0.3)
+    parser.add_argument('--max-decoding-time-step', type=int, default=70)
+    parser.add_argument('--no-char-decoder', action='store_true')
+
+
 def main():
     """ Main func.
     """
-    args = docopt(__doc__)
+    # args = docopt(__doc__)
+    args = get_args()
+    print(args)
 
     # Check pytorch version
     assert(torch.__version__ >= "1.0.0"), "Please update your installation of PyTorch. You have {} and you should have version greater than 1.0.0".format(torch.__version__)
