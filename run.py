@@ -401,7 +401,7 @@ def add_optional_arguments(parser):
     parser.add_argument('--hidden-size', type=int, default=256)
     parser.add_argument('--clip-grad', type=float, default=5.0)
     parser.add_argument('--log-every', type=int, default=10)
-    parser.add_argument('--max-epoch', type=int, default=30)
+    parser.add_argument('--max-epoch', type=int, default=5)
     parser.add_argument('--input-feed', action='store_true')
     parser.add_argument('--patience', type=int, default=5)
     parser.add_argument('--max-num-trial', type=int, default=5)
