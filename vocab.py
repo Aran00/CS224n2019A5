@@ -19,7 +19,6 @@ Options:
 """
 
 from collections import Counter
-from docopt import docopt
 from itertools import chain
 import json
 import torch
@@ -251,7 +250,7 @@ class Vocab(object):
         return 'Vocab(source %d words, target %d words)' % (len(self.src), len(self.tgt))
 
 
-
+"""
 if __name__ == '__main__':
     args = docopt(__doc__)
 
@@ -266,3 +265,4 @@ if __name__ == '__main__':
 
     vocab.save(args['VOCAB_FILE'])
     print('vocabulary saved to %s' % args['VOCAB_FILE'])
+"""
