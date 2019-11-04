@@ -247,8 +247,9 @@ class NMT(nn.Module):
         ### END YOUR CODE FROM ASSIGNMENT 4
 
         # Set e_t to -inf where enc_masks has 1
+        masks = enc_masks.byte() if torch.__version__ == "1.0.0" else enc_masks.bool()
         if enc_masks is not None:
-            e_t.data.masked_fill_(enc_masks.bool(), -float('inf'))
+            e_t.data.masked_fill_(masks, -float('inf'))
 
         ### COPY OVER YOUR CODE FROM ASSIGNMENT 4
         alpha_t = F.softmax(e_t, dim=1)  # (b, src_len)

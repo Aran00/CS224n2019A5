@@ -52,10 +52,12 @@ Options:
     --lr=<float>                            learning rate [default: 0.001]
     --uniform-init=<float>                  uniformly initialize all parameters [default: 0.1]
     --save-to=<file>                        model save path [default: model.bin]
+    --ppl-save-dir=<file>                   perplexity log file save directory [default: output]
     --valid-niter=<int>                     perform validation after how many iterations [default: 2000]
     --dropout=<float>                       dropout [default: 0.3]
     --max-decoding-time-step=<int>          maximum number of decoding time steps [default: 70]
     --no-char-decoder                       do not use the character decoder
+    --is-google-colab                       Is Google colab or not
 """
 import math
 import sys
@@ -63,6 +65,8 @@ import pickle
 import time
 import datetime
 import json
+import shutil
+import os
 
 
 from docopt import docopt
@@ -151,6 +155,8 @@ def train(args: Dict):
                 vocab=vocab, no_char_decoder=args['--no-char-decoder'])
     model.train()
 
+    print_model_param_count(model)
+
     uniform_init = float(args['--uniform-init'])
     if np.abs(uniform_init) > 0.:
         print('uniformly initialize parameters [-%f, +%f]' % (uniform_init, uniform_init), file=sys.stderr)
@@ -176,6 +182,9 @@ def train(args: Dict):
 
     avg_train_ppls = []
     avg_valid_ppls = []
+
+    # output_file_path = 'outputs/loss_%s' % datetime.datetime.now().strftime("%m-%d-%Y-%I:%M%p")
+    output_file_path = os.path.join(args['--ppl-save-dir'], 'ppl.json') if args['--ppl-save-dir'] else 'ppl.json'
 
     while True:
         epoch += 1
@@ -260,7 +269,7 @@ def train(args: Dict):
                         print('hit #%d trial' % num_trial, file=sys.stderr)
                         if num_trial == int(args['--max-num-trial']):
                             print('early stop!', file=sys.stderr)
-                            output_losses(args, log_every, valid_niter, avg_train_ppls, avg_valid_ppls)
+                            output_losses(args, log_every, valid_niter, avg_train_ppls, avg_valid_ppls, output_file_path)
                             exit(0)
 
                         # decay lr, and restore from previously best checkpoint
@@ -284,11 +293,16 @@ def train(args: Dict):
 
             if epoch == int(args['--max-epoch']):
                 print('reached maximum number of epochs!', file=sys.stderr)
-                output_losses(args, log_every, valid_niter, avg_train_ppls, avg_valid_ppls)
+                output_losses(args, log_every, valid_niter, avg_train_ppls, avg_valid_ppls, output_file_path)
                 exit(0)
+        output_losses(args, log_every, valid_niter, avg_train_ppls, avg_valid_ppls, output_file_path)
+        if args['--is-google-colab'] and epoch % 2 == 0 and os.path.isfile(model_save_path):
+            shutil.copy(model_save_path, args['--ppl-save-dir'])
+            shutil.copy(model_save_path + '.optim', args['--ppl-save-dir'])
+            print("copied model files to google drive!")
 
 
-def output_losses(args, log_iter, valid_iter, train_ppls, valid_ppls):
+def output_losses(args, log_iter, valid_iter, train_ppls, valid_ppls, output_file_path):
     output_data = {
         'args': args,
         'log_iter': log_iter,
@@ -296,10 +310,15 @@ def output_losses(args, log_iter, valid_iter, train_ppls, valid_ppls):
         'valid_iter': valid_iter,
         'valid_ppls': valid_ppls
     }
-    output_file_path = 'outputs/loss_%s' % datetime.datetime.now().strftime("%m-%d-%Y-%I:%M%p")
     with open(output_file_path, 'w') as outfile:
         json.dump(output_data, outfile)
     print('Output the train and valid ppl into the file %s' % output_file_path)
+
+
+def print_model_param_count(model):
+    # Calculate the parameter count that needs grad descents
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print('The parameter count of this model is %d' % pytorch_total_params)
 
 
 def decode(args: Dict[str, str]):
