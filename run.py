@@ -52,7 +52,7 @@ Options:
     --lr=<float>                            learning rate [default: 0.001]
     --uniform-init=<float>                  uniformly initialize all parameters [default: 0.1]
     --save-to=<file>                        model save path [default: model.bin]
-    --ppl-save-dir=<file>                   perplexity log file save directory [default: output]
+    --ppl-save-dir=<file>                   perplexity log file save directory [default: outputs]
     --valid-niter=<int>                     perform validation after how many iterations [default: 2000]
     --dropout=<float>                       dropout [default: 0.3]
     --max-decoding-time-step=<int>          maximum number of decoding time steps [default: 70]
@@ -303,6 +303,9 @@ def train(args: Dict):
 
 
 def output_losses(args, log_iter, valid_iter, train_ppls, valid_ppls, output_file_path):
+    if not args['--is-google-colab']:
+        return
+
     output_data = {
         'args': args,
         'log_iter': log_iter,
