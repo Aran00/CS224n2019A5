@@ -58,6 +58,7 @@ Options:
     --max-decoding-time-step=<int>          maximum number of decoding time steps [default: 70]
     --no-char-decoder                       do not use the character decoder
     --is-google-colab                       Is Google colab or not
+    --existing-model-path=<file>            The existing model path to start from
 """
 import math
 import sys
@@ -149,19 +150,28 @@ def train(args: Dict):
 
     vocab = Vocab.load(args['--vocab'])
 
-    model = NMT(embed_size=int(args['--embed-size']),
-                hidden_size=int(args['--hidden-size']),
-                dropout_rate=float(args['--dropout']),
-                vocab=vocab, no_char_decoder=args['--no-char-decoder'])
+    existing_model = args['--existing-model-path']
+    start_from_existing_model = existing_model and os.path.isfile(existing_model)
+    if start_from_existing_model:
+        print("load model from {}".format(existing_model), file=sys.stderr)
+        model = NMT.load(existing_model, no_char_decoder=args['--no-char-decoder'])
+    else:
+        print("Create a new model from hyper parameters")
+        model = NMT(embed_size=int(args['--embed-size']),
+                    hidden_size=int(args['--hidden-size']),
+                    dropout_rate=float(args['--dropout']),
+                    vocab=vocab, no_char_decoder=args['--no-char-decoder'])
     model.train()
 
     print_model_param_count(model)
 
-    uniform_init = float(args['--uniform-init'])
-    if np.abs(uniform_init) > 0.:
-        print('uniformly initialize parameters [-%f, +%f]' % (uniform_init, uniform_init), file=sys.stderr)
-        for p in model.parameters():
-            p.data.uniform_(-uniform_init, uniform_init)
+    # TODO: How to print all the parameters of this model? And is it useful?
+    if not start_from_existing_model:
+        uniform_init = float(args['--uniform-init'])
+        if np.abs(uniform_init) > 0.:
+            print('uniformly initialize parameters [-%f, +%f]' % (uniform_init, uniform_init), file=sys.stderr)
+            for p in model.parameters():
+                p.data.uniform_(-uniform_init, uniform_init)
 
     vocab_mask = torch.ones(len(vocab.tgt))
     vocab_mask[vocab.tgt['<pad>']] = 0
@@ -284,6 +294,7 @@ def train(args: Dict):
                         print('restore parameters of the optimizers', file=sys.stderr)
                         optimizer.load_state_dict(torch.load(model_save_path + '.optim'))
 
+                        # TODO: len(optimizer.param_groups) == 1 ? Or the below code seems odd
                         # set new lr
                         for param_group in optimizer.param_groups:
                             param_group['lr'] = lr
