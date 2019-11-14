@@ -5,14 +5,19 @@
 2. When evaluating dev set ppl during training process, we need to call model.eval() first. After evaluation, call model.train() again.
 3. The common training process in pytorch again:
     ```bash
-    optimizer.zero_grad()
-    loss = ...     # A tensor
-    loss.backward()
-    optimizer.step()
+    model = ...
+    optimizer = ...
+    while epoch < max_epoch_limit:
+        foreach batch:
+            optimizer.zero_grad()
+            loss = f(model, feature_data, target_data)     # A tensor
+            # All kinds of logging
+            loss.backward()
+            optimizer.step()
     ```
 4. The other things needed to note in the training process:
     
-    a. We need to copy both the model and data to device
+    a. We need to copy both the model and data to device(In this file, copying data to device is done by the model class)
 
     b. Grad clipping
     
@@ -42,3 +47,51 @@ Could try to use context-based vectors (like ELMo) and see if it can improve the
    b. tensor size check. Also could be contained in #a
    
    c. Train the model quickly on a mini-batch and see its overfit. 
+
+2. Really need a good software to draw the model structure...
+
+3. Maybe we could let the params of forward() function to be tensor? I think the model shouldn't concern its device...
+
+4. The unique problems of NLP model: padding/mask. First, we need to padding source and target data. 
+While in Seq2Seq model construction, how should it be used?
+    
+    a. The target padding/mask should be used when calculating the final loss. 
+    Of course, the masked(padded) position shouldn't have loss.
+    
+    b. The source padding/mask:
+       
+      - For pyTorch, source_length is needed for packing.
+      - Before input into decoder, need to produce a mask according to the source length.
+        
+    
+    Try to summarize their usages later.
+
+5.  The general workflow in a torch module:
+
+    a. init layers in init function
+    
+    b. call these layers one by one in forward function
+    
+    c. return some tensor at last. It could be a loss or the final output tensor, 
+    depending on whether you want to assign the loss calculation method in the 
+    main workflow.(I think moving it outside would be better. However, in a NLP model,
+    calculating final loss needs to use the target mask, maybe the author 
+    does not want to expose these details outside.)
+    
+6. In the forward function, the whole workflow could be divided to different sub-modules
+    (like encoder and decoder in this example). The critical thing here is to make clear what's
+    the inputs and outputs (also size) of each sub-module.
+    
+7. For RNN, if we have paddings in source data, using packing is necessary(must in bidirectional!),
+   or the padded position would be included in the forward computation.
+   It contains 2 functions:
+   ```
+   pack_padded_sequence   # Before RNN input
+   pad_packed_sequence    # After RNN output
+   ``` 
+   For different value of batch_first in pack_padded_sequence, the output shape(batch dim position) is different.
+   Use enforce_sorted to set whether to sort the batch by length descent or not. For the length descent case(default case),
+   the input data also needs to be sorted by length desc.
+   
+8. Remember to call contiguous() before view() (Almost always need, but remember when needs to call is also helpful)
+
