@@ -1,4 +1,4 @@
-### The Points
+### The Points in A4
 
 #### run.py
 1. The calculation of PPL：Average to each word
@@ -13,6 +13,7 @@
             loss = f(model, feature_data, target_data)     # A tensor
             # All kinds of logging
             loss.backward()
+            # clip norm if needed here using clip_grad_norm_
             optimizer.step()
     ```
 4. The other things needed to note in the training process:
@@ -112,4 +113,81 @@ While in Seq2Seq model construction, how should it be used?
 13. When using the seq2seq, remember to truncate the first<START> or last<END> is very important. The cases include:
     Summary it later
     
-14. Beam search:
+16. Beam search:
+    
+    a. 
+    
+    b. 
+    
+    c. In the beam search process, the beam size would decrease when some hypotheses is completed.
+    Why not keep these finished hypothesis in and compare them with others? 
+    
+    - If their sentence continue to grow, it would be wrong
+    
+    - If they stop to grow, then the other hypothesis's probability would be smaller and smaller 
+    after new time steps, so the finished would always be in the largest top K. So no need to compare again.
+    
+    - Would this cause the model to prefer shorter output sentences?
+    
+    d. The beam search program seems to be the most complex part in the whole program. The general workflow is as below:
+      
+      - Feed data into encoder to get src_encodings, and decoding initial states    
+      
+      - The decode process. The difficult point is that we need to select the input of decode cell manually in each timestamp.
+        ```
+        while t < max_decoding_time_step
+            t = t + 1
+            Expand src_encodings and exp_src_encodings_att_linear to the living hypothesis count batch
+            Prepare cell input, including the (last predicted word embedding) concat (last hidden state attention result)
+            step() to pass one LSTM cell
+            flatten the softmax of LSTM cell output result, add it with the original score
+            the result would be an indicator of the probability of the whole sequence. Get topk of them
+            for each hypothesis in topk result
+                if the hypothesis is completed
+                    add it to the completed hypotheses set
+                else
+                    construct it into the new start hypotheses, save their sequence and score, and related hypotheses id. 
+            if the completed hyp count == beam size
+                break
+            
+            prepare the input state of the next time step by related hypotheses ids collected above.
+        
+        if len(completed_hypotheses) == 0:
+            Only select the top 1 hypothesis
+        
+        Sort completed_hypotheses and return the one with the highest score
+    
+        ``` 
+          
+### The additional contents in A5
+
+#### cnn.py
+
+1. Add a CNN 
+
+2. Conv1d: input channel -> char_embed_size, output channel: word_embed_size
+   The kernel size is only a number as the other dim of the 1d kernel is fixed - input channel size
+   The input is still a 3D tensor whose size is [batch_size, char_embed_size, max_word_length]
+   and the output size is [batch_size, word_embed_size, max_word_length - kernel_size + 1]
+   So we can see that the 1D conv also likes 2D conv, 
+   the only difference is that it would only do conv calculations on the word length dim. 
+   The whole embed size dim would totally be contained in the conv kernel area. 
+   
+   Compare to 2D conv:
+   [batch_size, input_channel, height, width] -> [batch_size, output_channel, kernelled_height, kernelled_width]
+   We can see they have the similar pattern.
+
+#### model_embeddings.py
+
+Add CNN - highway layer.
+1. The batch_size & sentence length dims should be flattened, as in char level CNN, the CNNed target is a word.
+And in the final step, it should be reshaped to the original size.
+
+#### char_decoder.py
+
+
+#### nmt_model.py
+1. The first significant diff: The tensor before the embedding layer is char vector now
+
+2. The role of the char decoder:
+   a. 
