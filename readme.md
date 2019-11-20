@@ -2,13 +2,21 @@
 
 #### run.py
 1. The calculation of PPL：Average to each word
+
 2. When evaluating dev set ppl during training process, we need to call model.eval() first. After evaluation, call model.train() again.
+
 3. The common training process in pytorch again:
     ```bash
-    model = ...
+    model = None
+    if not load_from_existing_model:
+       model = init_model_param(model, init_method)
+    else:
+       model = load_model(model_path)
+    model = model.to(device)
+
     optimizer = ...
     while epoch < max_epoch_limit:
-        foreach batch:
+        for each batch:
             optimizer.zero_grad()
             loss = f(model, feature_data, target_data)     # A tensor
             # All kinds of logging
@@ -16,9 +24,11 @@
             # clip norm if needed here using clip_grad_norm_
             optimizer.step()
     ```
+
 4. The other things needed to note in the training process:
     
-    a. We need to copy both the model and data to device(In this file, copying data to device is done by the model class)
+    a. We need to copy both the model and data to device(In this file, copying data to device is done by the model class), 
+    moving data to device could be done when creating the tensor.
 
     b. Grad clipping
     
@@ -33,6 +43,19 @@
     e. The condition of early stop(contained above)
 
 5. Is with torch.no_grad() necessary in module evaluation?
+
+6. The common decode process:
+    ```
+    src_data = load_test_src_data()
+    target_data = load_test_target_data()
+    model = load_model(model_path)
+    model = model.to(device)  # If necessary
+    src_result = beam_search(model, src_data)
+    compute_bleu_score(src_result, target_data)
+    write_result(src_result)
+    ```
+    Seems moving data to GPU could speed up decoding process...
+    
 
 #### model_embeddings.py
 1. We don't use pre-trained embedding word vectors, like GLOVE in this assignment.
@@ -110,14 +133,53 @@ While in Seq2Seq model construction, how should it be used?
    
 12. A linear module could use a batch matrix as input, and the output would change the last dim.
 
-13. When using the seq2seq, remember to truncate the first<START> or last<END> is very important. The cases include:
+13. When using the seq2seq, the target sequence would append the <START> and <END>(Note that the source sequence would not). 
+    So in the later process(especially decoding) remember to truncate the first<START> or last<END> is very important. The cases include:
     Summary it later
+    
+14. tf.gather is not that straightforward for 3 dim tensor:
+   ```
+   out[i][j][k] = input[index[i][j][k]][j][k]  # if dim == 0
+   out[i][j][k] = input[i][index[i][j][k]][k]  # if dim == 1
+   out[i][j][k] = input[i][j][index[i][j][k]]  # if dim == 2
+   ```
+   And if the result dim should be the same as the index size.
+    
+15. The function of saving and loading pyTorch model is helpful. Copy here:
+   ```
+    @staticmethod
+    def load(model_path: str):
+        """ Load the model from a file.
+        @param model_path (str): path to model
+        """
+        params = torch.load(model_path, map_location=lambda storage, loc: storage)
+        args = params['args']
+        model = NMT(vocab=params['vocab'], **args)
+        model.load_state_dict(params['state_dict'])
+    
+        return model
+    
+    def save(self, path: str):
+        """ Save the model to a file. 
+        @param path (str): path to the model
+        """
+        print('save model parameters to [%s]' % path, file=sys.stderr)
+    
+        # So we need to save model args(used to reinit the model object), the vocabulary(Not sure whether we can also put it to args) and the state dict.
+        params = {
+            'args': dict(embed_size=self.model_embeddings.embed_size, hidden_size=self.hidden_size, dropout_rate=self.dropout_rate),
+            'vocab': self.vocab,
+            'state_dict': self.state_dict()
+        }
+    
+        torch.save(params, path)
+   ```    
     
 16. Beam search:
     
-    a. 
+    a. Treat one sentence at a time.
     
-    b. 
+    b. The encode process is the same as training.(add a dim to source sentence at first as we have no batch at first)
     
     c. In the beam search process, the beam size would decrease when some hypotheses is completed.
     Why not keep these finished hypothesis in and compare them with others? 
