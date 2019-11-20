@@ -29,12 +29,12 @@ class CharDecoder(nn.Module):
         ###       - Set the padding_idx argument of the embedding matrix.
         ###       - Create a new Embedding layer. Do not reuse embeddings created in Part 1 of this assignment.
         super(CharDecoder, self).__init__()
-        self.charDecoder = nn.LSTM(char_embedding_size, hidden_size)
-        total_target_char_count = len(target_vocab.char2id)
-        self.char_output_projection = nn.Linear(hidden_size, total_target_char_count)
         # So we don't use pre-trained embed vectors, like GLOVE in these 2 assignments. Could it be used to improve?
+        total_target_char_count = len(target_vocab.char2id)
         self.decoderCharEmb = nn.Embedding(total_target_char_count, char_embedding_size,
                                            padding_idx=target_vocab.char2id['<pad>'])
+        self.charDecoder = nn.LSTM(char_embedding_size, hidden_size)
+        self.char_output_projection = nn.Linear(hidden_size, total_target_char_count)
         self.target_vocab = target_vocab
         ### END YOUR CODE
     

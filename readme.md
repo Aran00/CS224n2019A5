@@ -246,10 +246,25 @@ Add CNN - highway layer.
 And in the final step, it should be reshaped to the original size.
 
 #### char_decoder.py
+1. The basic structure of this module:
+char_embedding + LSTM + Linear + softmax. So why don't we add a non-linear layer like Relu or tanh before softmax?
 
+2. The decode function is a greedy process. Could it be changed to a beam search like one? And would it improve the performance?
 
 #### nmt_model.py
-1. The first significant diff: The tensor before the embedding layer is char vector now
+1. The first significant diff: The tensor before the embedding layer is char vector now. 
+So we also need to reshape the input before entering the char encoder.
 
 2. The role of the char decoder:
-   a. 
+   
+   a. In training process, add the original loss with the decoder's oov(seems not oov at all!) loss,
+   and minimize the total loss. (Note that the original code returns the negative loss so the final result becomes 
+   _scores - ovvs_losses_) 
+   
+   b. In decode beam search process, the differences are:
+   
+    - The input are char embedded vectors;
+    
+    - In the generation, when a <UNK> appears, use the char decoder to generate a word by generating each character.
+
+   c. So how about the case that the decoded word(by chars) is not a valid word?

@@ -325,8 +325,10 @@ class NMT(nn.Module):
             # y_t_embed = self.model_embeddings_target(y_tm1)
             ## End A4 code
 
+            # (sentence_length, batch_size, max_word_length)
             y_tm1 = self.vocab.tgt.to_input_tensor_char(list([hyp[-1]] for hyp in hypotheses), device=self.device)
-            y_t_embed = self.model_embeddings_target(y_tm1)
+            y_t_embed = self.model_embeddings_target(y_tm1)  # (sentence_length, batch_size, embed_size)
+            # Each time one word, so the sentence_length is always 1
             y_t_embed = torch.squeeze(y_t_embed, dim=0)
 
 
@@ -359,8 +361,9 @@ class NMT(nn.Module):
 
                 # Record output layer in case UNK was generated
                 if hyp_word == "<unk>":
-                   hyp_word = "<unk>"+str(len(decoderStatesForUNKsHere))
-                   decoderStatesForUNKsHere.append(att_t[prev_hyp_id])
+                    # len(decoderStatesForUNKsHere) is the index used later
+                    hyp_word = "<unk>"+str(len(decoderStatesForUNKsHere))
+                    decoderStatesForUNKsHere.append(att_t[prev_hyp_id])
 
                 new_hyp_sent = hypotheses[prev_hyp_id] + [hyp_word]
                 if hyp_word == '</s>':
@@ -377,7 +380,7 @@ class NMT(nn.Module):
                 assert len(decodedWords) == decoderStatesForUNKsHere.size()[0], "Incorrect number of decoded words"
                 for hyp in new_hypotheses:
                   if hyp[-1].startswith("<unk>"):
-                        hyp[-1] = decodedWords[int(hyp[-1][5:])]#[:-1]
+                        hyp[-1] = decodedWords[int(hyp[-1][5:])]#[:-1]     5 == len("<unk>")
 
             if len(completed_hypotheses) == beam_size:
                 break
